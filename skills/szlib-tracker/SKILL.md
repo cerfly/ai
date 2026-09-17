@@ -90,6 +90,30 @@ GET /m/proxyBasic.jsp?servicehistory/GetLoanHistory?
 `sta/getReaderCredit?cardno=`, `sta/jzScore`, `sta/readerMarkHistory?period=all&cardno=`,
 `circulation/Renew`, `circulation/RenewByReader`, `auth/oauth/check_token`.
 
+## 文献转借 (book transfer between reader cards)
+
+Face-to-face QR handoff. **转出 = return**, **转入 = borrow**; same title
+max 2 transfers-out per card per year.
+
+**Lender side (holds the book):**
+1. `GET /m/mylibrary/mem_reborrowbox.html?barcode=<barcode>` → HTML with
+   `<img src="image.html?QRUrl=<urlencoded>>` (QR image service).
+2. QR decodes to `https://www.szlib.org.cn/m/mylibrary/transLoan.html?barcode=<barcode>*t=<ms_timestamp>`.
+   Extract `t` from `\*t%3D(\d+)`.
+3. Lender polls `circulation/getBookInfo?barcode=` until `readerno` changes.
+
+**Receiver side (their own session — page embeds their `readerno` + access_token):**
+1. `GET /m/mylibrary/transLoan.html?barcode=<barcode>&t=<ts>` → pre-check URL
+   `circulationmanage/loanCheck?readerno=..&barcode=..&access_token=..` (dry-run;
+   `result:success` + `CanLoanNum` = slots free; else `借数已满, 不能再借!`).
+2. Confirm → `GET /m/proxyBasic.jsp?circulationmanage/transferLoan?readerno=..&barcode=..&access_token=..&eventsite=WWW-MOBILE`
+   returns `{result:success, message:借书成功, loandate, returndate, cardno, ...}` — a fresh loan (due date restarts).
+
+**Implemented CLI:** `transfer-check --from L --to R [--barcode B]` (dry-run
+plan via loanCheck) and `transfer --from L --to R --barcode B --yes` (real
+mutation — refuses without `--yes`). Example verified live: gang→father,
+barcode `04412014642854`, `借书成功`, gang 32→31, father 28→29.
+
 ## Verification
 
 After any change, compile (`venv/bin/python -m py_compile ...`) and run a small
