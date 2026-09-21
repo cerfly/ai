@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>待还计划编辑器</title>
+<style>
+:root{--bg:#0f1420;--panel:#1a2332;--line:#2c3a52;--txt:#dbe4f0;--mut:#8fa2bb;
+--acc:#4da3ff;--ok:#2ecc71;--warn:#f39c12;--err:#e74c3c;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.6 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+header{position:sticky;top:0;background:var(--bg);padding:12px 18px;border-bottom:1px solid var(--line);
+display:flex;flex-wrap:wrap;gap:8px;align-items:center;z-index:5}
+header h1{font-size:17px;margin:0 14px 0 0}
+button{background:#26354c;color:var(--txt);border:1px solid var(--line);border-radius:6px;
+padding:6px 12px;cursor:pointer;font-size:13px}
+button:hover{border-color:var(--acc)}
+button.primary{background:var(--acc);color:#0a0e16;font-weight:600}
+button.danger{background:transparent;color:var(--err);border-color:#5a2a2e}
+button.danger:hover{border-color:var(--err)}
+input,select{background:#0d1520;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px}
+#status{color:var(--mut);font-size:12px;margin-left:auto}
+.toolbar{padding:12px 18px 0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.toolbar .sum{color:var(--mut);font-size:12px}
+.wrap{padding:12px 18px 40px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{position:sticky;top:94px;background:var(--panel);text-align:left;padding:8px;border-bottom:2px solid var(--line);color:var(--mut);font-weight:500}
+tbody td{padding:6px 8px;border-bottom:1px solid #223044;vertical-align:middle}
+tr.od{background:rgba(231,76,60,.08)}
+tr.wd{background:rgba(243,156,18,.07)}
+tr.done td{opacity:.45}
+td.title{max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+input[type=date]{width:118px} input[type=text]{width:100%}
+select{width:88px}
+.ck{width:34px;text-align:center} .who{width:106px}
+.badge{padding:1px 8px;border-radius:10px;font-size:12px}
+.b-早{color:var(--ok);background:rgba(46,204,113,.12)}
+.b-延{color:var(--warn);background:rgba(243,156,18,.12)}
+.b-期{color:var(--mut);background:rgba(143,162,187,.12)}
+.modal{position:fixed;inset:0;background:rgba(5,8,14,.7);display:none;align-items:center;justify-content:center;z-index:20}
+.modal.on{display:flex}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:10px;max-width:720px;width:92%;
+max-height:86vh;display:flex;flex-direction:column}
+.box h3{margin:0;padding:14px 18px;border-bottom:1px solid var(--line);font-size:15px}
+.box .bd{overflow:auto;padding:14px 18px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;white-space:pre-wrap}
+.box .ft{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+.muted{color:var(--mut)}
+.hidec{display:none!important}
+.colmenu{position:relative}
+.colmenu .menu{display:none;position:absolute;top:110%;left:0;background:var(--panel);border:1px solid var(--line);
+border-radius:8px;padding:8px 10px;min-width:110px;z-index:15;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+.colmenu .menu.on{display:block}
+.colmenu .menu label{display:block;padding:2px 0;cursor:pointer;white-space:nowrap}
+@media (max-width:760px){ header h1{width:100%} #status{margin-left:0} }
+</style>
+</head>
+<body>
+<header>
+  <h1>待还计划编辑器</h1>
+  <button class="primary" onclick="openPlan()">打开计划</button>
+  <button onclick="savePlan()">保存</button>
+  <button onclick="importCsv()">导入在借CSV</button>
+  <button onclick="genChecklist()">生成清单</button>
+  <span id="status">未加载 —— 点「打开计划」选择 data/return_plan.json</span>
+</header>
+
+<div class="toolbar">
+  <input type="search" id="q" placeholder="搜索…" oninput="state.q=this.value;render()" style="width:140px">
+  <select id="accFilter" onchange="state.acc=this.value;render()" title="按账户筛选"></select>
+  <select id="sortSel" onchange="state.sort=this.value;render()" title="排序方式">
+    <option value="due">应还日 近→远</option>
+    <option value="dueDesc">应还日 远→近</option>
+    <option value="remain">剩余天数 少→多</option>
+    <option value="title">按题名</option>
+    <option value="who">按账户</option>
+  </select>
+  <select id="statusFilter" onchange="state.show=this.value;render()" title="状态">
+    <option value="active">计划中</option>
+    <option value="all">全部</option>
+    <option value="done">仅已还</option>
+  </select>
+  <div class="sum" id="sum"></div>
+  <div class="colmenu">
+    <button onclick="toggleColMenu()">列</button>
+    <div class="menu" id="colMenu">
+      <label><input type="checkbox" value="title" onchange="togCol('title',this.checked)" checked> 题名</label>
+      <label><input type="checkbox" value="who" onchange="togCol('who',this.checked)" checked> 账户</label>
+      <label><input type="checkbox" value="due" onchange="togCol('due',this.checked)" checked> 应还</label>
+      <label><input type="checkbox" value="intent" onchange="togCol('intent',this.checked)" checked> 方式</label>
+      <label><input type="checkbox" value="note" onchange="togCol('note',this.checked)" checked> 备注</label>
+      <label><input type="checkbox" value="done" onchange="togCol('done',this.checked)" checked> 已还</label>
+      <label><input type="checkbox" value="op" onchange="togCol('op',this.checked)" checked> 操作</label>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <table>
+    <thead><tr>
+      <th class="ck" title="勾选=准备还,不勾=不还;点击此格头=全选/全部取消">
+        <input type="checkbox" id="mc" onchange="toggleAll(this.checked)" title="全选/全部取消勾选"></th>
+      <th data-col="title" class="colTitle">题名</th>
+      <th data-col="who" class="colWho">账户</th>
+      <th data-col="due" class="colDue">应还</th>
+      <th data-col="intent" class="colIntent">方式</th>
+      <th data-col="note" class="colNote">备注</th>
+      <th data-col="done" class="colDone">已还</th>
+      <th data-col="op" class="colOp"></th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</div>
+
+<input type="file" id="fileIn" accept=".json,.csv" style="display:none">
+
+<div class="modal" id="modal">
+  <div class="box">
+    <h3>待还清单 <span class="muted" id="modalSub"></span></h3>
+    <div class="bd" id="clText"></div>
+    <div class="ft">
+      <button onclick="copyCl()">复制</button>
+      <button class="primary" onclick="downloadCl()">下载 .md</button>
+      <button onclick="closeModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const COL_DEF={title:1,who:1,due:1,intent:1,note:1,done:1,op:1};
+const state={handle:null,fname:'',items:[],q:'',show:'active',acc:'',sort:'due',cl:'',cols:ldGet('szse_cols')||{...COL_DEF}};
+const $=id=>document.getElementById(id);
+function ldGet(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+function ldSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>new Date().toISOString().slice(0,10);
+
+function daysLeft(due){ if(!due)return null;
+  const d=new Date(due+'T00:00'), t=new Date(today()+'T00:00');
+  return Math.round((d-t)/86400000); }
+function remain(due){ const n=daysLeft(due);
+  return n===null?'—':(n<0?`超期${-n}天`:n+'天'); }
+
+function accOpts(){
+  const set=[];
+  state.items.forEach(i=>{const w=i.who||'(未指定)'; if(!set.includes(w))set.push(w);});
+  set.sort((x,y)=>x.localeCompare(y,'zh'));
+  return '<option value="">全部账户</option>'+set.map(w=>
+    `<option value="${esc(w)}" ${state.acc===w?'selected':''}>${esc(w)}</option>`).join('');
+}
+function sorter(){
+  const k=state.sort, L=k==='dueDesc'?-1:1;
+  return (a,b)=>{
+    if((a.status==='done')!==(b.status==='done')) return a.status==='done'?1:-1;
+    const da=daysLeft(a.due), db=daysLeft(b.due);
+    if(k==='due'||k==='dueDesc'||k==='remain')
+      return ((da===null?99999:da)-(db===null?99999:db))*L;
+    if(k==='title') return String(a.title||'').localeCompare(String(b.title||''),'zh');
+    if(k==='who'){ const c=String(a.who||'').localeCompare(String(b.who||''),'zh'); return c||((da===null?99999:da)-(db===null?99999:db)); }
+    return 0; };
+}
+function summary(){ const a=state.items.filter(i=>i.status!=='done');
+  const ck=a.filter(i=>i.checked!==false), e=a.filter(i=>(i.intent||'按期')==='提前还'), l=a.filter(i=>(i.intent||'按期')==='延迟');
+  $('sum').textContent=`在借 ${a.length} · 准备还 ${ck.length} · 提前还 ${e.length} · 延迟 ${l.length}`;
+}
+
+function badge(it){ const k={提前还:'b-早',延迟:'b-延',按期:'b-期'}[it.intent||'按期'];
+  return `<span class="badge ${k}">${esc(it.intent||'按期')}</span>`; }
+
+function visibleRows(){
+  const q=state.q.trim().toLowerCase();
+  return state.items.filter(i=>{
+    if(state.show==='active'&&i.status==='done')return false;
+    if(state.show==='done'&&i.status!=='done')return false;
+    if(state.acc&&(i.who||'')!==state.acc)return false;
+    if(q&&!(String(i.title||'').toLowerCase().includes(q)||String(i.note||'').toLowerCase().includes(q)))return false;
+    return true; });
+}
+function render(){
+  const rows=visibleRows();
+  rows.sort(sorter());
+  $('accFilter').innerHTML=accOpts();
+  $('rows').innerHTML=rows.map((it)=>{
+    const i=state.items.indexOf(it);
+    const cl=(it.status!=='done'&&it.checked!==false)?' checked':'';
+    const rowCl=it.status==='done'?'done':(daysLeft(it.due)<0?'od':(daysLeft(it.due)<=7?'wd':''));
+    const who=it.who||'';
+    const due=(it.due||'');
+    return `<tr class="${rowCl}" data-i="${i}">
+      <td class="ck"><input type="checkbox" ${it.status==='done'?'disabled':''} ${cl} onchange="togCl(this.checked,${i})"></td>
+      <td class="title colTitle" data-col="title" title="${esc(it.title)}">${esc(it.title)}${it.barcode?`<span class="muted"> ·${esc(it.barcode)}</span>`:''}</td>
+      <td class="who colWho" data-col="who"><input value="${esc(who)}" onchange="setW(${i},this.value)"></td>
+      <td class="colDue" data-col="due"><input type="date" value="${esc(due)}" onchange="setD(${i},this.value)"></td>
+      <td class="colIntent" data-col="intent"><select onchange="setI(${i},this.value)">
+        ${['提前还','按期','延迟'].map(v=>`<option ${it.intent===v?'selected':''}>${v}</option>`).join('')}
+      </select></td>
+      <td class="colNote" data-col="note"><input type="text" value="${esc(it.note||'')}" placeholder="备注…" onchange="setN(${i},this.value)"></td>
+      <td class="colDone" data-col="done"><input type="checkbox" ${it.status==='done'?'checked':''} onchange="setDone(${i},this.checked)"></td>
+      <td class="colOp" data-col="op"><button class="danger" onclick="del(${i})">删</button></td>
+    </tr>`; }).join('');
+  summary();
+  const actv=state.items.filter(i=>i.status!=='done');
+  const allCk=actv.length>0&&actv.every(i=>i.checked!==false);
+  const anyCk=actv.some(i=>i.checked!==false);
+  const mc=$('mc');
+  mc.checked=allCk; mc.indeterminate=anyCk&&!allCk; mc.disabled=actv.length===0;
+  applyCols();
+  document.querySelectorAll('#colMenu input').forEach(el=>{ el.checked=!!state.cols[el.value]; });
+  $('q').focus();
+}
+
+function byIdx(i){ return state.items[i]; }
+function togCl(v,i){ byIdx(i).checked=v?undefined:false; render(); }
+function toggleAll(sel){ const actv=state.items.filter(i=>i.status!=='done');
+  actv.forEach(i=>{ if(sel){ if(i.checked===false) i.checked=undefined; } else i.checked=false; });
+  render(); }
+function toggleColMenu(){ $('colMenu').classList.toggle('on'); }
+function togCol(k,v){ state.cols[k]=v; ldSet('szse_cols',state.cols); applyCols(); }
+function applyCols(){ document.querySelectorAll('[data-col]').forEach(el=>{
+  if(state.cols[el.dataset.col]) el.classList.remove('hidec'); else el.classList.add('hidec'); }); }
+function setW(i,v){ byIdx(i).who=v; summary(); }
+function setD(i,v){ byIdx(i).due=v; render(); }
+function setI(i,v){ byIdx(i).intent=v; render(); }
+function setN(i,v){ byIdx(i).note=v; summary(); }
+function setDone(i,v){ byIdx(i).status=v?'done':'active'; render(); }
+function del(i){ if(confirm('删除这条计划?')){ state.items.splice(i,1); render(); } }
+
+/* ---------- 清单生成 ---------- */
+const ORD={提前还:0,按期:1,延迟:2};
+function genClText(items){
+  const active=items.filter(i=>i.status!=='done'&&i.checked!==false);
+  const groups={提前还:[],按期:[],延迟:[]};
+  active.forEach(i=>groups[i.intent||'按期'].push(i));
+  const L=[`==== 待还清单(${today()},共 ${active.length} 本)====`];
+  for(const g of ['提前还','按期','延迟']){
+    const gs=groups[g].sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999'));
+    if(!gs.length)continue;
+    L.push(`\n[${g} · ${gs.length} 本]`);
+    gs.forEach(i=>{ const note=i.note?` —— ${i.note}`:''; const who=i.who?`(${i.who})`:'';
+      L.push(`- [ ] ${i.title}${who} 应还${i.due||'—'}(${remain(i.due)})${note}`); });
+  }
+  return L.join('\n');
+}
+function genChecklist(){ const scope=visibleRows();
+  const picked=scope.filter(i=>i.status!=='done'&&i.checked!==false);
+  state.cl=genClText(scope);
+  $('clText').textContent=state.cl; $('modalSub').textContent=
+    `${scope.length?('筛选内 '+scope.length+' 本 · '):''}准备还 ${picked.length} 本`+(state.acc?` · 当前账户:${state.acc}`:'');
+  $('modal').classList.add('on'); }
+function closeModal(){ $('modal').classList.remove('on'); }
+function downloadCl(){ const b=new Blob([state.cl+'\n'],{type:'text/markdown;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+  a.download=`待还清单_${today()}.md`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
+function copyCl(){ navigator.clipboard.writeText(state.cl).then(()=>toast('已复制'),()=>toast('复制失败,手动选择')); }
+function toast(s){ const st=$('status'); const old=st.textContent; st.textContent=s; setTimeout(()=>st.textContent=old,2600); }
+
+/* ---------- 文件读写:File System Access API + 降级 ---------- */
+async function openPlan(){ state.handle=null;
+  try{ const[h]=await window.showOpenFilePicker({types:[{description:'待还计划 JSON',accept:{'application/json':['.json']}}]});
+    state.handle=h; setFromFile(await h.getFile()); $('status').textContent='加载: '+h.name; return; }
+  catch(e){ if(e.name==='AbortError')return; }
+  const inp=$('fileIn'); inp.accept='.json'; inp.value=''; inp.onchange=async()=>{ const f=inp.files[0]; if(f){ await setFromFile(f); $('status').textContent='加载(降级): '+f.name; } }; inp.click(); }
+async function setFromFile(f){ let j=JSON.parse(await f.text()); state.items=(j.items||[]).map(it=>({...it})); render(); }
+
+async function savePlan(){ if(!state.items.length&&!confirm('计划为空仍保存?'))return;
+  try{ if(!state.handle){ state.handle=await window.showSaveFilePicker({suggestedName:'return_plan.json',
+        types:[{description:'待还计划 JSON',accept:{'application/json':['.json']}}]}); }
+    const w=await state.handle.createWritable();
+    await w.write(JSON.stringify({items:state.items},null,2)); await w.close();
+    $('status').textContent='已保存: '+state.handle.name; }
+  catch(e){ if(e.name==='AbortError')return; /* 降级下载 */ downloadBlob(new Blob([JSON.stringify({items:state.items},null,2)],{type:'application/json'}),'return_plan.json');
+    $('status').textContent='降级:已下载 return_plan.json,请替换 data/ 下同名文件'; }
+}
+
+function downloadBlob(b,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000); }
+
+function importCsv(){ const inp=$('fileIn'); inp.accept='.csv'; inp.value=''; inp.onchange=async()=>{ const f=inp.files[0]; if(!f)return;
+  const rows=parseCsv(await f.text()); let add=0,upd=0;
+  const byBc={}; state.items.forEach(i=>{ if(i.barcode)byBc[i.barcode]=i; });
+  rows.forEach(r=>{ const bc=r.barcode||''; const due=r['应还日期']||''; const title=r['题名']||r.title||'?';
+    const idno=r['身份证号']||''; const who=idno.length>=10?`${r['账户序号']?'账户'+r['账户序号']+'·':''}${idno.slice(6,10)}`:r['账户序号']?'账户'+r['账户序号']+'(年份未知)':'';
+    let cur=bc&&byBc[bc];
+    if(cur){ cur.due=due||cur.due; cur.title=title; if(who)cur.who=who;
+      if(cur.status==='done')cur.status='active'; upd++; }
+    else{ state.items.push({title,barcode:bc,who,due,note:'',intent:'按期',status:'active'}); add++; } });
+  render(); $('status').textContent=`导入 CSV:新增 ${add},更新 ${upd}`; };
+  inp.click(); }
+function parseCsv(t){ t=t.replace(/^\uFEFF/,'').trim(); const ln=t.split(/\r?\n/);
+  const h=ln[0].split(',').map(s=>s.trim()); return ln.slice(1).filter(Boolean).map(l=>{
+    const p=[]; let c='',q=false; for(const ch of l){ if(q){ if(ch==='"'){q=false;} else c+=ch; }
+      else if(ch==='"')q=true; else if(ch===','){p.push(c);c='';} else c+=ch; } p.push(c);
+    const o={}; h.forEach((k,i)=>o[k]=p[i].trim()); return o; }); }
+
+/* 默认数据:由 scripts/plan_view.py 生成时内嵌(在借+已有计划合并快照);手动构建可置 null */
+const EMBED = /*__EMBED__*/ null;
+
+/* ---------- 自检(供无头验证) ---------- */
+window.addEventListener('DOMContentLoaded',()=>{
+  if(location.search.includes('selftest')){ selftest(); return; }
+  if(EMBED && EMBED.items){
+    state.items=(EMBED.items||[]).map(x=>({...x}));
+    render();
+    $('status').textContent=`已加载在借快照(${EMBED.generated||''}) · ${state.items.length} 本 · 可改后「保存」写回 return_plan.json`;
+  }
+});
+function selftest(){ const t=[
+  {title:'小王子',due:'2026-09-22',intent:'提前还',note:'n',status:'active',who:'账户1·2020'},
+  {title:'阿达姆',due:'2026-09-30',intent:'按期',status:'active',who:'账户1·2020'},
+  {title:'巴巴利波',due:'2026-09-25',intent:'延迟',status:'active',who:'账户2·1989'},
+  {title:'丁丁历险记',due:'2026-09-25',intent:'按期',checked:false,status:'active',who:'账户2·1989'},
+  {title:'爱丽丝',due:'2026-09-25',intent:'按期',status:'done',who:'账户1·2020'}];
+  const cl=genClText(t);
+  const c1 = cl.includes('[提前还 · 1 本]')&&cl.includes('[延迟 · 1 本]')
+    && cl.split('- [ ]').length-1===3 && !cl.includes('丁丁') && !cl.includes('爱丽丝');
+  state.items=t.map(x=>({...x}));
+  const by=accOpts();
+  const c2 = by.includes('全部账户') && by.includes('账户1·2020') && by.includes('账户2·1989');
+  state.acc=''; state.sort='title'; render();
+  const firstTitle=(document.querySelector('#rows td.title')?.textContent||'').trim();
+  const c3 = firstTitle==='阿达姆';
+  state.acc='账户2·1989'; state.sort='due'; render();
+  const c4 = document.querySelectorAll('#rows tr').length===2;
+  const row0=document.querySelector('#rows tr');
+  const expected=String((row0.querySelector('td.title')||{}).getAttribute('title')||'').trim();
+  const box=row0.querySelector('.ck input');
+  box.checked=false; box.dispatchEvent(new Event('change'));
+  const c5 = expected!=='' && state.items.filter(i=>i.title===expected).every(i=>i.checked===false);
+  const off=state.items.filter(i=>i.checked===false).map(i=>i.title);
+  const c6 = off.length===2 && off.includes('巴巴利波') && off.includes('丁丁历险记');
+  const mc=$('mc');
+  mc.checked=true; mc.dispatchEvent(new Event('change'));
+  const c7 = state.items.filter(i=>i.status!=='done'&&i.checked===false).length===0;
+  mc.checked=false; mc.dispatchEvent(new Event('change'));
+  const c8 = state.items.filter(i=>i.status!=='done'&&i.checked!==false).length===0 &&
+             state.items.some(i=>i.title==='爱丽丝'&&i.status==='done');
+  state.cols.who=false; applyCols();
+  const c9 = [...document.querySelectorAll('td.colWho')].every(td=>td.classList.contains('hidec')) &&
+             [...document.querySelectorAll('td.colTitle')].every(td=>!td.classList.contains('hidec'));
+  state.cols.who=true; applyCols();
+  const c10t=[...document.querySelectorAll('#rows td.title')].map(td=>(td.getAttribute('title')||'').trim());
+  const c10 = c10t.length>0 && c10t.every(s=>s!=='');
+  state.acc='账户2·1989'; state.q=''; state.show='active';
+  state.items.forEach(i=>{ if(i.status!=='done') i.checked=(i.title==='巴巴利波')?undefined:false; });
+  render();
+  const cl2=genClText(visibleRows());
+  const c11 = cl2.includes('巴巴利波')&&cl2.includes('[延迟 · 1 本]')
+    && !cl2.includes('丁丁')&&!cl2.includes('小王子')&&!cl2.includes('阿达姆');
+  state.acc=''; state.show='active'; state.sort='due'; render();
+  const ok = c1&&c2&&c3&&c4&&c5&&c6&&c7&&c8&&c9&&c10&&c11;
+  document.title='SELFTEST '+ (ok?'OK':('FAIL-'+[c1&&'c1',c2&&'c2',c3&&'c3',c4&&'c4',c5&&'c5',c6&&'c6',c7&&'c7',c8&&'c8',c9&&'c9',c10&&'c10',c11&&'c11'].filter(Boolean).join('-'))) + ' | 待还计划编辑器';
+  if(ok) $('status').textContent='自检通过'; else $('status').textContent='自检失败';
+  state.acc=''; state.show='active'; state.sort='due'; render();
+}
+</script>
+</body>
+</html>

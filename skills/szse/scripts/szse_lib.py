@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""深圳图书馆(深图 UILAS OPAC)多账户自动登录。
+"""深圳少儿图书馆(UILAS OPAC)多账户自动登录。
 
 输出:
     borrow_raw.json / borrow.csv   —— 当前借阅(在借)
@@ -301,7 +301,7 @@ def write_json(path, payload):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="深圳图书馆借阅信息抓取")
+    ap = argparse.ArgumentParser(description="深圳少儿图书馆借阅信息抓取")
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     ap.add_argument("账户文件", nargs="?", default=os.path.join(ROOT, "szse"))
     ap.add_argument("输出前缀", nargs="?",

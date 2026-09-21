@@ -6,14 +6,17 @@
 
 | 目录 | 说明 |
 |------|------|
-| `skills/szse` | 深圳图书馆借阅数据采集 · 统计 · 可视化看板(详见下方) |
+| `skills/szse` | 深圳少儿图书馆借阅数据采集 · 统计 · 可视化看板(详见下方) |
+| `skills/szlib-tracker` | 深圳图书馆(szlib.org.cn,成人馆)借阅跟踪 —— 与少儿馆 szse 区分 |
 | `skills/youtube-summarize` | YouTube 视频总结技能(详情见其 `SKILL.md`) |
 
 ---
 
-## skills/szse — 深圳图书馆借阅数据看板
+## skills/szse — 深圳少儿图书馆借阅数据看板
 
-对深圳图书馆(UILAS ILASOPAC,`ilas.szclib.org.cn`)的家庭借阅账户做**只读**数据采集与分析:
+> 本技能数据源是**深圳少儿图书馆**(UILAS ILASOPAC,`ilas.szclib.org.cn`),与深户**深圳图书馆**(`szlib.org.cn`,成人馆,见 `skills/szlib-tracker`)**不是同一系统**,本机 4 个家庭账户均为少儿馆读者。
+
+对深圳少儿图书馆的家庭借阅账户做**只读**数据采集与分析:
 
 - 自动登录(身份证号 + 验证码 OCR,`ddddocr`)
 - 抓取当前在借、近 N 个月借阅史、全量借阅史统计
@@ -29,6 +32,7 @@ szse/
   scripts/
     szse_lib.py     数据抓取脚本(当前在借 + 借阅史 + 统计)
     dashboard.py    看板生成器(输出自包含 HTML)
+    plan.py         待还计划 CLI(手动记录要还的书,看板提醒)
     sanitize.py     脱敏导出脚本(供公开场合使用)
   assets/           echarts.min.js(构建时内联进看板)
   data/             原始抓取数据(含完整身份证号,被 gitignore,**勿提交**)
@@ -74,3 +78,37 @@ python3 scripts/dashboard.py --refresh-full           # 强制重抓全量借阅
 python3 scripts/dashboard.py --no-fetch               # 纯离线重建(仅用本地缓存)
 python3 scripts/dashboard.py --dummy                  # 演示数据(验证模板用)
 ```
+
+### 待还计划(防忘还)
+
+```bash
+python3 scripts/plan.py import          # 把当前在借自动导入计划
+python3 scripts/plan.py add "书名" --due 2026-10-01 --who 账户3·1987 --intent 提前还 --note 备注
+python3 scripts/plan.py tag "书名" --intent 延迟 --note "等第二卷到馆再还"   # 改意图/备注/应还日
+python3 scripts/plan.py check "书名"    # 加入清单;uncheck 移出
+python3 scripts/plan.py list            # 按应还日排序,含 勾/方式/剩余天数/备注
+python3 scripts/plan.py brief           # 生成勾选式简要清单(仅含已勾选条目)
+python3 scripts/plan.py brief --out data/return_plan_brief.md   # 保存为文件
+python3 scripts/plan.py done "书名"     # 还掉后标记; undo 撤销; remove 删除
+```
+
+- 每本书可标**归还方式**:`提前还` / `按期`(默认) / `延迟`,并可单独加备注。
+- 计划存于 `data/return_plan.json`,看板的"待还计划"卡片会展示方式标签(提前还=绿、延迟=黄)并按剩余天数标红/标黄提醒。
+
+### 可视化编辑器(独立界面)
+
+```bash
+python3 scripts/plan_view.py                 # 合并 4 账户在借 + 已有计划 → 生成 plan.html(内置快照)
+xdg-open skills/szse/plan.html               # 或双击打开,免服务器
+```
+
+打开即**默认加载 4 个账户的全部当前在借书目**。**书目与当前借阅严格一致**:快照由 `plan_view.py` 从在借数据生成,只含真实在借的书(已还的自动消失),不会出现没借过的书。
+
+- **按账户筛选**(下拉:全部/账户1·2020…账户4·1966)、状态(计划中/全部/仅已还)、搜索
+- **自定义排序**:应还日近→远 / 远→近 / 剩余天数 / 题名 / 账户
+- 勾选 = **准备还**(不勾 = 不还,筛选/排序状态下同样有效);表头复选框可**一键全选 / 全部取消**
+- **列显隐**:工具栏「列」菜单可隐藏/显示任意列(账户、备注、操作…),选择自动记忆
+- 改方式与备注、改应还日、标记已还、删除条目、导入在借 CSV
+- 生成并下载勾选清单(`待还清单_YYYY-MM-DD.md`),按 提前还/按期/延迟 分组,**跟随当前账户/搜索/状态筛选**(选了某账户就只导出该账户的勾选书目)
+
+备注只由你自己填写(系统不会自动添加);数据经浏览器 File System Access API 直接读写 `data/return_plan.json`(不支持时自动降级为"导入/导出文件");每次抓取最新在借后重跑 `python3 scripts/plan_view.py` 即可刷新快照。
