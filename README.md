@@ -21,7 +21,8 @@
 - **蓝牙音箱自动连接(Philips SPA3609)**:PC 侧配置本无问题,根因是音箱待机/"上次设备
   记忆";修复 = systemd 看门狗服务让 PC 主动拨打。排查记录见 [`issue-report.md`](skills/fix-issue/issue-report.md)。
 
-> ⚠️ 本目录内容含本机蓝牙 MAC 地址与路径,属半公开信息,公开仓库可见。
+> ⚠️ 本目录曾含本机蓝牙 MAC 地址,公开前已**打码**(`XX:XX:XX:XX:XX:XX`);真实 MAC 仅存于本机
+> 系统服务文件,不入库。仓库内路径均为通用 `~` 相对路径。
 
 ---
 
@@ -48,12 +49,13 @@ szse/
     plan.py         待还计划 CLI(手动记录要还的书,看板提醒)
     plan_view.py    plan.html 编辑器生成器(内嵌在借快照)
     renew.py        续借工具(默认 dry-run,`--go --yes` 才会真实执行,唯一写操作)
-    sanitize.py     脱敏导出脚本(供公开场合使用)
   assets/           echarts.min.js(构建时内联进看板)
-  data/             原始抓取数据(含完整身份证号,被 gitignore,**勿提交**)
-  export/           脱敏后的公开副本(身份证号已掩码为 前6****后4)
-  reports/          借阅分析报告 / 最近借还记录 / 续借规则(Markdown)
+  data/             原始抓取数据(含完整身份证号+书目,被 gitignore,**勿提交**)
+  plan.html         在借快照编辑器产物(被 gitignore,含书目,**勿提交**)
+  reports/          借阅分析报告 / 最近借还记录 / 续借规则(被 gitignore,含书目,**勿提交**)
 ```
+
+> **隐私边界**:本技能的对象(图书借阅记录、书目、待还计划)属于个人隐私,一律只保存在本机;存档备份走私有 GitHub 仓 `cerfly/archive`(= 本目录的 `data/`、`plan.html`、`reports/` 镜像),**绝不进入本公开仓库**。凭据文件 `szse` 连私有仓也不进。
 
 ### 快速开始
 
@@ -74,15 +76,13 @@ python3 scripts/szse_lib.py
 
 # 3. 生成自包含看板(全量借阅史首次抓取较慢,之后走缓存)
 python3 scripts/dashboard.py
-
-# 4. (可选)导出脱敏副本到 export/,可安全公开/上传
-python3 scripts/sanitize.py
 ```
 
 ### 隐私说明
 
-- `szse` 与 `data/` 下的原始抓取结果含**完整身份证号**,已被 `.gitignore` 排除,请勿强制添加或外传。
-- 公开发布前请运行 `scripts/sanitize.py`,它会将所有身份证号掩码为 `前6****后4` 后输出到 `export/`。
+- **图书借阅记录 = 个人隐私**:`szse`(凭据)、`data/`(原始抓取,含完整身份证号)、`plan.html`、`reports/`(目录含书目)均被 `.gitignore` 排除,**绝不提交到本公开仓**。
+- 机器上的个人数据想备份?存档统一到私有 GitHub 仓 `cerfly/archive`(镜像 `data/` + `plan.html` + `reports/`);`szse` 凭据文件(明文密码)连私有仓也不进,如需备份请另行加密保存。
+- 本目录下可安全分享的只有:**代码**(`scripts/*.py`、`plan_tpl.html`)、**技能文档**(`SKILL.md`)、vendored 资源(`assets/`)。
 
 ### 常用脚本参数
 

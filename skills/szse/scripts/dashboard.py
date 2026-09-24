@@ -74,32 +74,6 @@ def cat_name(callno):
     return CN.get(letter, f"其他({letter})")
 
 
-PLAN_FILE = os.path.join(DATA_DIR, "return_plan.json")
-
-
-def load_plan_items():
-    try:
-        with open(PLAN_FILE, encoding="utf-8") as f:
-            items = json.load(f).get("items", [])
-    except (OSError, ValueError):
-        return []
-    out = []
-    for it in items:
-        if it.get("status") == "done":
-            continue
-        due = it.get("due") or ""
-        try:
-            dd = (datetime.strptime(due, "%Y-%m-%d").date() - date.today()).days
-        except ValueError:
-            dd = None
-        out.append({"题名": it.get("title") or it.get("barcode") or "?",
-                    "账户": it.get("who") or "—", "应还": due or "—",
-                    "剩余天数": dd, "意图": it.get("intent") or "按期",
-                    "备注": it.get("note") or ""})
-    out.sort(key=lambda x: (x["剩余天数"] is None, x["剩余天数"] or 9999))
-    return out
-
-
 def load_cache_or_fetch(accounts, ocr, refresh=False, no_fetch=False):
     if not refresh and not no_fetch and os.path.exists(CACHE_FULL):
         with open(CACHE_FULL, encoding="utf-8") as f:
@@ -218,12 +192,10 @@ def main():
     due30 = [{"idno": k, "book": b, "剩余天数": due_days(b.get("retudate"))}
              for k, acc in loans_by_acc.items() for b in acc
              if (dd := due_days(b.get("retudate"))) is not None and 0 <= dd <= 30]
-    plan_items = load_plan_items()
     kpi = {
         "在借册数": len(loans_all),
         "超期书": len(overdue),
         "30天内到期": len(due30),
-        "计划待还": len(plan_items),
         "全量借出": sum(1 for r in full_recs_all if str(r.get("logtype")) == "3031"),
         "不重复书种": len({r.get("title") or "" for r in full_recs_all if r.get("title")}),
         "全量续借": sum(1 for r in full_recs_all if str(r.get("logtype")) == "3035"),
@@ -318,7 +290,6 @@ def main():
                         ("30天以上", due_bucket["30天以上"])] if v],
         "top_total": top_total, "top_loan": top_loan,
         "overdue": overdue, "due30": due30, "loan_list": loan_list,
-        "plan": plan_items,
     }
     with open(DATA_J, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -414,10 +385,6 @@ th{color:var(--mut);font-weight:500}
     <div id="overdue_warn" style="font-size:13px"></div>
   </div>
 
-  <div class="card span-12"><h3>待还计划<span id="plan_cnt"></span><span style="color:var(--mut);font-weight:normal"> 用 scripts/plan.py 维护</span></h3>
-    <div style="overflow-x:auto"><table id="plan_tb"></table></div>
-  </div>
-
   <div class="card span-12"><h3>当前在借明细(按应还日期排序)<span id="loan_cnt"></span></h3>
     <div style="overflow-x:auto"><table id="loan_tb"></table></div>
   </div>
@@ -447,7 +414,7 @@ function pie(center){return {tooltip:{trigger:'item',formatter:'{b}<br/>{c} 册 
   labelLine:{lineStyle:{color:'#3a4a66'}}}]};}
 
 function init(){ initKPI(); initTrend(); initDue(); initAccFull(); initAccLoans(); initAccH3();
-  initCat(); initCat3(); initYear(); initTop(); initTopL(); initOverdue(); initPlan(); initTable(); }
+  initCat(); initCat3(); initYear(); initTop(); initTopL(); initOverdue(); initTable(); }
 function initKPI(){
   const k=D.kpi, conf=[['在借册数',k['在借册数'],'c1'],['超期书',k['超期书'],'c2'],
     ['30天内到期',k['30天内到期'],'c3'],['全量借出',k['全量借出'],'c4'],
@@ -549,20 +516,6 @@ function initTable(){
       <td>${r['索取号']||''}</td><td>${r['馆藏']||''}</td><td>${fmt(r['借出'])}</td><td>${fmt(r['应还'])}</td>
       <td>${r['剩余天数']===null?'—':(r['剩余天数']<0?`超期${-r['剩余天数']}天`:r['剩余天数']+'天')}</td>
       <td>${r['续借']??0}</td></tr>`).join('');
-}
-function initPlan(){
-  const rows=D.plan||[];
-  const isEarly=r=>r['意图']==='提前还', isLate=r=>r['意图']==='延迟';
-  $('plan_cnt').textContent=`计划中 ${rows.length} 册 · 提前还 ${rows.filter(isEarly).length} · 延迟 ${rows.filter(isLate).length}`;
-  if(!rows.length){ $('plan_tb').innerHTML='<tr><td colspan="6" style="color:var(--mut)">暂无待还计划,用 python3 scripts/plan.py add "书名" --due 2026-xx-xx 添加</td></tr>'; return; }
-  const plug=r=>`<span style="font-weight:600;color:${isEarly(r)?'var(--ok)':(isLate(r)?'var(--warn)':'var(--mut)')}">${r['意图']}</span>`;
-  const row=r=>`<tr class="${r['剩余天数']!==null&&r['剩余天数']<0?'od':(r['剩余天数']!==null&&r['剩余天数']<=7?'wd':'')}">
-      <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis" title="${r['题名']}">${r['题名']}</td>
-      <td>${r['账户']}</td><td>${r['应还']}</td>
-      <td>${r['剩余天数']===null?'—':(r['剩余天数']<0?`超期${-r['剩余天数']}天`:r['剩余天数']+'天')}</td>
-      <td>${plug(r)}</td><td>${r['备注']||''}</td></tr>`;
-  $('plan_tb').innerHTML='<tr><th>题名</th><th>账户</th><th>应还</th><th>剩余</th><th>方式</th><th>备注</th></tr>'+
-    rows.map(r=>row(r)).join('');
 }
 window.addEventListener('DOMContentLoaded', init);
 </script>

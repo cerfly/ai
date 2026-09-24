@@ -8,5 +8,6 @@
 
 ## 规则
 - 本仓库是 **公开仓库**(cerfly/ai)。绝不让 `data/`、`szse` 凭据、`henren778*`、`transcripts/` 等私有内容进入提交。
+- **借阅书目数据亦为隐私**(图书借阅=个人阅读倾向)。`skills/szse` 下的 `data/`、`plan.html`、`reports/`、`export/` 一律不入本仓库;个人数据存档统一放**私有仓 `cerfly/archive`**(此公开仓与私有仓的边界即本文档)。新增脚本产物提交前先判断其是否含书目/个人信息。
 - `git push` 用 `pull --rebase` 后再推,priority: 先展示 diff 摘要。
 - 提交信息简洁、与仓库现有风格一致。

@@ -5,32 +5,32 @@ description: "Query 深圳少儿图书馆 / Shenzhen Children's Library (UILAS I
 
 # 深圳少儿图书馆借阅数据采集与看板 (Shenzhen Children's Library borrowing toolkit)
 
-Reads the Shenzhen Children's Library UILAS-OPAC (`ilas.szclib.org.cn`) reader accounts read-only: login, current loans, borrow history, stats, report, dashboard. All work is GET/POST queries — nothing is ever modified, renewed, or returned.
+Reads the Shenzhen Children's Library UILAS-OPAC (`ilas.szclib.org.cn`) reader accounts: login, current loans, borrow history, stats, report, dashboard — all read-only. **The only write-action tool is `scripts/renew.py` (renewal), which defaults to dry-run and refuses to act without explicit `--go` + confirmation — see "Step 4b" below. Nothing is ever modified, renewed, or returned by any other tool.**
 
 ## Where things live (this machine)
 
 ```
 /home/cerfly/ai/skills/szse/
-  szse                  # account credentials: idno + password, one pair per 2 lines (idcard + 8-digit DOB password)
+  szse                  # account credentials: idno + password, one pair per 2 lines (idcard + 8-digit DOB password) — LOCAL ONLY, never committed anywhere
   SKILL.md              # this skill (also mirrored to ~/.config/opencode/skills/szse-borrow/)
-  plan.html             # GENERATED standalone visual editor — embedded snapshot of 4 accounts' current loans + saved plan (build from plan_tpl.html via plan_view.py; open in Chrome, no server needed)
+  plan.html             # GENERATED standalone visual editor — embedded snapshot of 4 accounts' current loans + saved plan (build from plan_tpl.html via plan_view.py; open in Chrome, no server needed). PRIVATE (book titles): gitignored, archived to the private repo cerfly/archive
   scripts/
     szse_lib.py         # fetch script (loans + history + stats)
     dashboard.py        # ECharts dashboard generator (self-contained html)
     plan.py             # return-plan CLI (manual 待还 tracking, checklist export)
     plan_view.py        # plan.html generator: embeds current-loans snapshot exactly (borrow.csv), applies saved plan metadata
+    renew.py            # RENEWAL (WRITE) tool: default dry-run; real renew needs --go + --who/--all/--title + --yes
     plan_tpl.html       # editor template (the `/*__EMBED__*/ null` marker is replaced by plan_view.py)
-    sanitize.py         # de-identification export (for public sharing)
   assets/
     echarts.min.js      # vendored ECharts (>1MB; inlined into dashboard.html at build time)
-  data/
+  data/                 # PRIVATE (full idcards + book titles): gitignored, archived to cerfly/archive
     borrow.csv / borrow_raw.json               # current loans (latest run)
     borrow_history.csv / borrow_history_raw.json  # recent-N-months history
     borrow_history_stats.json                  # full-history stats (numbers + TOP20 only)
     full_history_records.json                  # full-history cache (slow ~5min fetch, then cached)
     return_plan.json                           # return-plan records (manual, via scripts/plan.py)
     dashboard.html / dashboard_data.json       # generated dashboard (+ its data source)
-  reports/
+  reports/              # PRIVATE (book lists / account levels): gitignored, archived to cerfly/archive
     借阅分析报告.md      # generated analysis report (sample)
 ```
 
@@ -127,8 +127,8 @@ python3 dashboard.py --dummy         # demo data, no login (template smoke test)
 Derive the Markdown report from the CSV/JSON outputs (current-loans table, overdue list, monthly/yearly trend, category splits by 中图法 first letter of `callno`, per-account reading profiles, TOP lists). The prior report is `reports/借阅分析报告.md`. Structure: 摘要 → 当前在借 → 全量历史 → 近3月动态 → 画像 → 建议 → 附录.
 
 ### Return plan — `plan.py` (CLI) + `plan.html` (visual editor)
-Records books to return with due dates. The dashboard shows active plan items in a "待还计划" table (past-due red / soon yellow, intent badge 提前还=green / 延迟=amber). Every active item can be individually *checked into the checklist* (`checked` field; default true) — only checked items appear in generated lists.
-- **Visual editor (recommended for manual work)**: open `plan.html` in Chrome — no server needed. On open it **default-loads a snapshot of all 4 accounts' current loans** (embedded by `scripts/plan_view.py` — rerun it after every `szse_lib.py` fetch to refresh). **The book list is guaranteed to equal the current loans exactly**: plan_view.py embeds only books present in borrow.csv (returned books drop out; no ghost/manual books ever appear). It edits `data/return_plan.json` directly via the File System Access API (auto-fallback to 导入/导出 files when unsupported). Features: per-row checkbox (**勾选 = 准备还、不勾 = 不还** — only checked books appear in the generated list; the box works even while filtered/sorted); the **header checkbox selects all / clears all** at once; a **「列」 menu hides/unhides columns** (账户/备注/操作…, persisted to localStorage); 方式(提前还/按期/延迟), 备注 (user-written only — the system never adds notes), 应还日, 已还 toggle (done rows' checkbox is disabled), 删除条目, **账户筛选** + **搜索** + **排序**(应还日近/远、剩余天数、题名、账户), import from `borrow.csv`, 生成清单 → download `待还清单_YYYY-MM-DD.md` (grouped 提前还/按期/延迟, `- [ ]` lines; **the export follows the current 账户/搜索/状态 filter** — pick an account and only that account's checked books are exported). To edit UI code, change `scripts/plan_tpl.html` then rebuild `plan.html` via `plan_view.py`.
+Records books to return with due dates. **The dashboard does NOT show the return plan anymore** (it caused confusion with the real on-loan table — plan state lives only in `plan.html` and the CLI). Every active item can be individually *checked into the checklist* (`checked` field; default true) — only checked items appear in generated lists.
+- **Visual editor (recommended for manual work)**: open `plan.html` in Chrome — no server needed. On open it **default-loads a snapshot of all 4 accounts' current loans** (embedded by `scripts/plan_view.py` — rerun it after every `szse_lib.py` fetch to refresh). **The book list is guaranteed to equal the current loans exactly**: plan_view.py embeds only books present in borrow.csv (returned books drop out; no ghost/manual books ever appear). It edits `data/return_plan.json` directly via the File System Access API (auto-fallback to 导入/导出 files when unsupported). Features: **dashboard-like stat cards** (在借 / 准备还 / 超期 / 7天内 / 提前还 / 延迟 with icons — click a card to filter the table to that group, click again to clear) plus a **due-distribution bar** (超期/7天内/8~30天/30天后 with legend); per-row checkbox (**勾选 = 准备还、不勾 = 不还** — checked rows auto-group to a green **「准备还」** section at the top, unchecked stay in **「暂不还」**, done books collect in **「已还」**; only checked books appear in the generated list; the box works even while filtered/sorted; re-render never steals focus and keeps the toggled row in view so you can **tick books continuously without the page jumping to top**); the **header checkbox selects all / clears all** at once; a **「列」 menu hides/unhides columns** (账户/备注/操作…, persisted to localStorage); 方式(提前还/按期/延迟), 备注 (user-written only — the system never adds notes), 应还日, 已还 toggle (done rows' checkbox is disabled), 删除条目, **账户筛选** + **搜索** + **排序**(应还日近/远、剩余天数、题名、账户), import from `borrow.csv`, 生成清单 → download `待还清单_YYYY-MM-DD.md` (grouped 提前还/按期/延迟, `- [ ]` lines; **the export follows the current 账户/搜索/状态 filter** — pick an account and only that account's checked books are exported). To edit UI code, change `scripts/plan_tpl.html` then rebuild `plan.html` via `plan_view.py`.
 - CLI:
 ```bash
 python3 scripts/plan.py import                  # merge current loans from data/borrow.csv (rerun to refresh due dates)
@@ -144,9 +144,17 @@ python3 scripts/plan.py done "<条码或题名>"        # mark returned (undo / 
 - Trap: `borrow.csv` header carries a UTF-8 BOM — read with `encoding='utf-8-sig'` (CSV imports in plan.py AND plan.html strip 首行 BOM) or 账户序号 lookups silently return None.
 - Verify plan.html edits: run `node --check` on the extracted inline `<script>`, then `chromium --headless --dump-dom "file://.../plan.html?selftest"` — page title must read `SELFTEST OK` (covers checklist grouping, account-filter, and sort assertions).
 
+## Step 4b — Renewal `scripts/renew.py` (WRITE operation)
+
+- **This is the only tool that changes library state.** Default run (`python3 scripts/renew.py`) is **dry-run**: logs in, classifies loans into 可续 (renewnum==0, not overdue) / 已续满 / 超期, lists candidates with recno, and exits without POSTing any renewal.
+- Real execution requires **all three**: `--go` + a selection (`--who N` / `--all` / `--title 子串`) + `--yes` (or typing `yes` at the interactive prompt). Overdue and already-renewed books are never touched.
+- Mechanism: per-book `POST /ILASOPAC/BookLoanRetr.do` with `barList=<recno>`, Referer `NTMyBookLoanRetr.do?target=2x`, `X-Requested-With: XMLHttpRequest`. Response is the full loan grid; the renewed book's row carries `endResult` ("续借成功!" or the failure reason) and the new `retudate` — match the row by `recno`, **not** `batch[0]`.
+- After running: the script re-fetches and reports per-account 可续/续满/超期 counts; then run `scripts/szse_lib.py` again to refresh `borrow.csv`/`borrow_raw.json`, and `plan_view.py` to rebuild `plan.html`.
+- Rules (verified 2026-09-24 from the library's 借阅权限 query + 积分计划): renewal adds **+30 days** (from the original due date), max **1 renewal** per item; loan caps/durations depend on the card level (小学士 12本·40天 / 小硕士 14本·50天 / 小博士 16本·60天 / 小院士 18本·70天, each +1 device slot). Details in `reports/续借规则.md`.
+
 ## Step 5 — Output guardrails
 
-- **Privacy**: `szse` and `*_raw.json` contain full ID numbers + passwords. Never commit, print, or share them; mask (`前6后4`) in any human-facing output. Dashboard/report mask account numbers.
+- **Privacy — book/loan data is personal**: `szse`, `data/`, `plan.html`, and `reports/` contain full ID numbers, passwords and **borrowed-book titles**; they are gitignored and must never be committed to the public repo `cerfly/ai` — archive them to the private repo `cerfly/archive` instead (see AGENTS.md). Mask (`前6后4`) any account numbers in human-facing output.
 - Overdue status must be computed at render time (`today = date.today()`), not baked from an old scrape.
 - If the site remodels endpoints (404 / "访问错误" on the AJAX urls), re-reverse from the login/reader pages: the nav links on the post-login reader home page enumerate the current endpoint names.
 

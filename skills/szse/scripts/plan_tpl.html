@@ -51,7 +51,31 @@ max-height:86vh;display:flex;flex-direction:column}
 border-radius:8px;padding:8px 10px;min-width:110px;z-index:15;box-shadow:0 6px 24px rgba(0,0,0,.4)}
 .colmenu .menu.on{display:block}
 .colmenu .menu label{display:block;padding:2px 0;cursor:pointer;white-space:nowrap}
+.stats{display:flex;flex-wrap:wrap;gap:8px;padding:12px 18px 0}
+.stats .card{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);
+border-radius:10px;padding:7px 13px;cursor:pointer;min-width:112px;user-select:none}
+.stats .card:hover{border-color:var(--acc)}
+.stats .card.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.stats .card .ic{width:17px;height:17px;color:var(--mut);flex:none}
+.stats .card .lb{font-size:12px;color:var(--mut)}
+.stats .card b{font-size:16px;margin-left:auto}
+.stats .card.od b,.stats .card.od .ic{color:var(--err)}
+.stats .card.soon b,.stats .card.soon .ic{color:var(--warn)}
+.stats .card.early b,.stats .card.early .ic{color:var(--ok)}
+.stats .card.delay b,.stats .card.delay .ic{color:var(--warn)}
+.dist{padding:10px 18px 0}
+.dbar{display:flex;height:7px;border-radius:5px;overflow:hidden;background:#0d1520}
+.dbar span{height:100%}
+.seg-od{background:var(--err)} .seg-soon{background:var(--warn)}
+.seg-mid{background:var(--acc)} .seg-far{background:#4b5f7a}
+.dleg{display:flex;gap:14px;margin-top:6px;font-size:12px;color:var(--mut);flex-wrap:wrap}
+.dleg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 @media (max-width:760px){ header h1{width:100%} #status{margin-left:0} }
+tr.grp td{background:#f1f5f9;color:#94a3b8;font-weight:600;font-size:12px;letter-spacing:.05em;padding:12px 10px 6px;border:none;}
+tr.grp td b{color:#334155;font-weight:700;margin-left:6px;}
+tr.grp.g-sel td{background:#ecfdf5;color:#059669;}
+tr.grp.g-sel td b{color:#047857;}
+tr.grp.g-done td{background:#f8fafc;color:#cbd5e1;}
 </style>
 </head>
 <body>
@@ -94,6 +118,42 @@ border-radius:8px;padding:8px 10px;min-width:110px;z-index:15;box-shadow:0 6px 2
   </div>
 </div>
 
+<div class="stats" id="stats">
+  <div class="card" data-f="" onclick="focus('')" title="全部在借">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    <span class="lb">在借</span><b id="sAll">0</b>
+  </div>
+  <div class="card" data-f="todo" onclick="focus('todo')" title="勾选=准备还的书籍">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+    <span class="lb">准备还</span><b id="sTodo">0</b>
+  </div>
+  <div class="card od" data-f="od" onclick="focus('od')" title="已超期">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    <span class="lb">超期</span><b id="sOd">0</b>
+  </div>
+  <div class="card soon" data-f="soon" onclick="focus('soon')" title="7 天内到期">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    <span class="lb">7天内</span><b id="sSoon">0</b>
+  </div>
+  <div class="card early" data-f="early" onclick="focus('early')" title="方式=提前还">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+    <span class="lb">提前还</span><b id="sEarly">0</b>
+  </div>
+  <div class="card delay" data-f="delay" onclick="focus('delay')" title="方式=延迟">
+    <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+    <span class="lb">延迟</span><b id="sDelay">0</b>
+  </div>
+</div>
+<div class="dist">
+  <div class="dbar"><span class="seg-od"></span><span class="seg-soon"></span><span class="seg-mid"></span><span class="seg-far"></span></div>
+  <div class="dleg">
+    <span><i class="seg-od"></i><b id="gOd">超期 0</b></span>
+    <span><i class="seg-soon"></i><b id="gSoon">7天内 0</b></span>
+    <span><i class="seg-mid"></i><b id="gMid">8~30天 0</b></span>
+    <span><i class="seg-far"></i><b id="gFar">30天后 0</b></span>
+  </div>
+</div>
+
 <div class="wrap">
   <table>
     <thead><tr>
@@ -127,7 +187,7 @@ border-radius:8px;padding:8px 10px;min-width:110px;z-index:15;box-shadow:0 6px 2
 
 <script>
 const COL_DEF={title:1,who:1,due:1,intent:1,note:1,done:1,op:1};
-const state={handle:null,fname:'',items:[],q:'',show:'active',acc:'',sort:'due',cl:'',cols:ldGet('szse_cols')||{...COL_DEF}};
+const state={handle:null,fname:'',items:[],q:'',show:'active',acc:'',sort:'due',cl:'',focus:'',cols:ldGet('szse_cols')||{...COL_DEF}};
 const $=id=>document.getElementById(id);
 function ldGet(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
 function ldSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
@@ -162,6 +222,29 @@ function summary(){ const a=state.items.filter(i=>i.status!=='done');
   const ck=a.filter(i=>i.checked!==false), e=a.filter(i=>(i.intent||'按期')==='提前还'), l=a.filter(i=>(i.intent||'按期')==='延迟');
   $('sum').textContent=`在借 ${a.length} · 准备还 ${ck.length} · 提前还 ${e.length} · 延迟 ${l.length}`;
 }
+function bucketDays(n){ if(n===null||n>30)return 'far'; if(n<0)return 'od'; if(n<=7)return 'soon'; return 'mid'; }
+function renderStats(){
+  const a=state.items.filter(i=>i.status!=='done');
+  const ck=a.filter(i=>i.checked!==false);
+  const od=a.filter(i=>daysLeft(i.due)<0);
+  const soon=a.filter(i=>{const n=daysLeft(i.due);return n!==null&&n>=0&&n<=7;});
+  const early=a.filter(i=>(i.intent||'按期')==='提前还');
+  const delay=a.filter(i=>(i.intent||'按期')==='延迟');
+  const g={od:0,soon:0,mid:0,far:0};
+  a.forEach(i=>g[bucketDays(daysLeft(i.due))]++);
+  $('sAll').textContent=a.length; $('sTodo').textContent=ck.length;
+  $('sOd').textContent=od.length; $('sSoon').textContent=soon.length;
+  $('sEarly').textContent=early.length; $('sDelay').textContent=delay.length;
+  $('gOd').textContent=`超期 ${g.od}`; $('gSoon').textContent=`7天内 ${g.soon}`;
+  $('gMid').textContent=`8~30天 ${g.mid}`; $('gFar').textContent=`30天后 ${g.far}`;
+  const kids=document.querySelector('.dbar').children, base=a.length||1;
+  ['od','soon','mid','far'].forEach((k,i)=>{ kids[i].style.width=(g[k]/base*100)+'%'; });
+  [...document.querySelectorAll('#stats .card')].forEach(c=>{
+    const f=c.dataset.f||'';
+    if(f===state.focus) c.classList.add('on'); else c.classList.remove('on');
+  });
+}
+function focus(k){ state.focus=(state.focus===k)?'':k; render(); }
 
 function badge(it){ const k={提前还:'b-早',延迟:'b-延',按期:'b-期'}[it.intent||'按期'];
   return `<span class="badge ${k}">${esc(it.intent||'按期')}</span>`; }
@@ -173,19 +256,30 @@ function visibleRows(){
     if(state.show==='done'&&i.status!=='done')return false;
     if(state.acc&&(i.who||'')!==state.acc)return false;
     if(q&&!(String(i.title||'').toLowerCase().includes(q)||String(i.note||'').toLowerCase().includes(q)))return false;
+    if(state.focus==='todo'&&i.checked===false)return false;
+    const n=daysLeft(i.due);
+    if(state.focus==='od'&&(n===null||n>=0))return false;
+    if(state.focus==='soon'&&(n===null||n<0||n>7))return false;
+    if(state.focus==='early'&&(i.intent||'按期')!=='提前还')return false;
+    if(state.focus==='delay'&&(i.intent||'按期')!=='延迟')return false;
     return true; });
 }
 function render(){
   const rows=visibleRows();
   rows.sort(sorter());
   $('accFilter').innerHTML=accOpts();
-  $('rows').innerHTML=rows.map((it)=>{
+  const grps={sel:[],nos:[],done:[]};
+  rows.forEach(it=>{
+    if(it.status==='done')grps.done.push(it); else if(it.checked!==false)grps.sel.push(it); else grps.nos.push(it);
+  });
+  const rowH=(it)=>{
     const i=state.items.indexOf(it);
     const cl=(it.status!=='done'&&it.checked!==false)?' checked':'';
     const rowCl=it.status==='done'?'done':(daysLeft(it.due)<0?'od':(daysLeft(it.due)<=7?'wd':''));
     const who=it.who||'';
     const due=(it.due||'');
-    return `<tr class="${rowCl}" data-i="${i}">
+    const k=esc(it.barcode||it.title);
+    return `<tr class="${rowCl}" data-i="${i}" data-k="${k}">
       <td class="ck"><input type="checkbox" ${it.status==='done'?'disabled':''} ${cl} onchange="togCl(this.checked,${i})"></td>
       <td class="title colTitle" data-col="title" title="${esc(it.title)}">${esc(it.title)}${it.barcode?`<span class="muted"> ·${esc(it.barcode)}</span>`:''}</td>
       <td class="who colWho" data-col="who"><input value="${esc(who)}" onchange="setW(${i},this.value)"></td>
@@ -196,8 +290,16 @@ function render(){
       <td class="colNote" data-col="note"><input type="text" value="${esc(it.note||'')}" placeholder="备注…" onchange="setN(${i},this.value)"></td>
       <td class="colDone" data-col="done"><input type="checkbox" ${it.status==='done'?'checked':''} onchange="setDone(${i},this.checked)"></td>
       <td class="colOp" data-col="op"><button class="danger" onclick="del(${i})">删</button></td>
-    </tr>`; }).join('');
+    </tr>`;
+  };
+  const grp=(label,n,cls)=>`<tr class="grp ${cls}"><td colspan="8">${label}<b>${n} 本</b></td></tr>`;
+  let html='';
+  if(grps.sel.length)html+=grp('准备还 · ',grps.sel.length,'g-sel')+grps.sel.map(rowH).join('');
+  if(grps.nos.length)html+=grp('暂不还 · ',grps.nos.length,'g-nos')+grps.nos.map(rowH).join('');
+  if(grps.done.length)html+=grp('已还 · ',grps.done.length,'g-done')+grps.done.map(rowH).join('');
+  $('rows').innerHTML=html;
   summary();
+  renderStats();
   const actv=state.items.filter(i=>i.status!=='done');
   const allCk=actv.length>0&&actv.every(i=>i.checked!==false);
   const anyCk=actv.some(i=>i.checked!==false);
@@ -205,11 +307,12 @@ function render(){
   mc.checked=allCk; mc.indeterminate=anyCk&&!allCk; mc.disabled=actv.length===0;
   applyCols();
   document.querySelectorAll('#colMenu input').forEach(el=>{ el.checked=!!state.cols[el.value]; });
-  $('q').focus();
 }
 
+function keyOf(it){ return it.barcode||it.title; }
+function jumpTo(it){ const r=document.querySelector('#rows tr[data-k="'+CSS.escape(keyOf(it))+'"]'); if(r) r.scrollIntoView({block:'nearest',inline:'nearest'}); }
 function byIdx(i){ return state.items[i]; }
-function togCl(v,i){ byIdx(i).checked=v?undefined:false; render(); }
+function togCl(v,i){ const it=byIdx(i); it.checked=v?undefined:false; render(); jumpTo(it); }
 function toggleAll(sel){ const actv=state.items.filter(i=>i.status!=='done');
   actv.forEach(i=>{ if(sel){ if(i.checked===false) i.checked=undefined; } else i.checked=false; });
   render(); }
@@ -221,7 +324,7 @@ function setW(i,v){ byIdx(i).who=v; summary(); }
 function setD(i,v){ byIdx(i).due=v; render(); }
 function setI(i,v){ byIdx(i).intent=v; render(); }
 function setN(i,v){ byIdx(i).note=v; summary(); }
-function setDone(i,v){ byIdx(i).status=v?'done':'active'; render(); }
+function setDone(i,v){ byIdx(i).status=v?'done':'active'; render(); jumpTo(byIdx(i)); }
 function del(i){ if(confirm('删除这条计划?')){ state.items.splice(i,1); render(); } }
 
 /* ---------- 清单生成 ---------- */
@@ -300,14 +403,18 @@ window.addEventListener('DOMContentLoaded',()=>{
     state.items=(EMBED.items||[]).map(x=>({...x}));
     render();
     $('status').textContent=`已加载在借快照(${EMBED.generated||''}) · ${state.items.length} 本 · 可改后「保存」写回 return_plan.json`;
+    $('q').focus();
   }
 });
-function selftest(){ const t=[
-  {title:'小王子',due:'2026-09-22',intent:'提前还',note:'n',status:'active',who:'账户1·2020'},
-  {title:'阿达姆',due:'2026-09-30',intent:'按期',status:'active',who:'账户1·2020'},
-  {title:'巴巴利波',due:'2026-09-25',intent:'延迟',status:'active',who:'账户2·1989'},
-  {title:'丁丁历险记',due:'2026-09-25',intent:'按期',checked:false,status:'active',who:'账户2·1989'},
-  {title:'爱丽丝',due:'2026-09-25',intent:'按期',status:'done',who:'账户1·2020'}];
+function selftest(){ const T=new Date();
+  const iso=(off)=>{ const d=new Date(T.getFullYear(),T.getMonth(),T.getDate()+off);
+    const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; };
+  const t=[
+  {title:'小王子',due:iso(2),intent:'提前还',note:'n',status:'active',who:'账户1·2020'},
+  {title:'阿达姆',due:iso(10),intent:'按期',status:'active',who:'账户1·2020'},
+  {title:'巴巴利波',due:iso(5),intent:'延迟',status:'active',who:'账户2·1989'},
+  {title:'丁丁历险记',due:iso(5),intent:'按期',checked:false,status:'active',who:'账户2·1989'},
+  {title:'爱丽丝',due:iso(5),intent:'按期',status:'done',who:'账户1·2020'}];
   const cl=genClText(t);
   const c1 = cl.includes('[提前还 · 1 本]')&&cl.includes('[延迟 · 1 本]')
     && cl.split('- [ ]').length-1===3 && !cl.includes('丁丁') && !cl.includes('爱丽丝');
@@ -318,8 +425,8 @@ function selftest(){ const t=[
   const firstTitle=(document.querySelector('#rows td.title')?.textContent||'').trim();
   const c3 = firstTitle==='阿达姆';
   state.acc='账户2·1989'; state.sort='due'; render();
-  const c4 = document.querySelectorAll('#rows tr').length===2;
-  const row0=document.querySelector('#rows tr');
+  const c4 = document.querySelectorAll('#rows tr[data-k]').length===2;
+  const row0=document.querySelector('#rows tr[data-k]');
   const expected=String((row0.querySelector('td.title')||{}).getAttribute('title')||'').trim();
   const box=row0.querySelector('.ck input');
   box.checked=false; box.dispatchEvent(new Event('change'));
@@ -345,8 +452,25 @@ function selftest(){ const t=[
   const c11 = cl2.includes('巴巴利波')&&cl2.includes('[延迟 · 1 本]')
     && !cl2.includes('丁丁')&&!cl2.includes('小王子')&&!cl2.includes('阿达姆');
   state.acc=''; state.show='active'; state.sort='due'; render();
-  const ok = c1&&c2&&c3&&c4&&c5&&c6&&c7&&c8&&c9&&c10&&c11;
-  document.title='SELFTEST '+ (ok?'OK':('FAIL-'+[c1&&'c1',c2&&'c2',c3&&'c3',c4&&'c4',c5&&'c5',c6&&'c6',c7&&'c7',c8&&'c8',c9&&'c9',c10&&'c10',c11&&'c11'].filter(Boolean).join('-'))) + ' | 待还计划编辑器';
+  const odi=state.items.find(i=>i.title==='巴巴利波'); odi.due=iso(-2); state.focus='od'; render();
+  const c12 = visibleRows().length===1 && visibleRows()[0].title==='巴巴利波';
+  const c12b = $('sOd').textContent==='1';
+  odi.due=iso(5);
+  state.focus='early'; render();
+  const c13 = visibleRows().length===1 && visibleRows()[0].title==='小王子';
+  state.focus='delay'; render();
+  const c14 = visibleRows().length===1 && visibleRows()[0].title==='巴巴利波';
+  state.focus='todo'; render();
+  const c15 = visibleRows().length===1 && visibleRows()[0].title==='巴巴利波' && visibleRows().every(i=>i.checked!==false);
+  state.focus=''; state.acc=''; state.show='active'; state.sort='due'; render();
+  const seqOf=()=>[...document.querySelectorAll('#rows tr')].map(r=>{
+    const td=r.querySelector('td.title'); return td?(td.getAttribute('title')||'').trim():(r.textContent||'').trim().split('·')[0].trim(); }).join('|');
+  const c16 = seqOf()==='准备还|巴巴利波|暂不还|小王子|丁丁历险记|阿达姆';
+  state.show='all'; render();
+  const c17 = seqOf()==='准备还|巴巴利波|暂不还|小王子|丁丁历险记|阿达姆|已还|爱丽丝';
+  state.show='active'; state.sort='due'; render();
+  const ok = c1&&c2&&c3&&c4&&c5&&c6&&c7&&c8&&c9&&c10&&c11&&c12&&c12b&&c13&&c14&&c15&&c16&&c17;
+  document.title='SELFTEST '+ (ok?'OK':('FAIL-'+[c1&&'c1',c2&&'c2',c3&&'c3',c4&&'c4',c5&&'c5',c6&&'c6',c7&&'c7',c8&&'c8',c9&&'c9',c10&&'c10',c11&&'c11',c12&&'c12',c12b&&'c12b',c13&&'c13',c14&&'c14',c15&&'c15',c16&&'c16',c17&&'c17'].filter(Boolean).join('-'))) + ' | 待还计划编辑器';
   if(ok) $('status').textContent='自检通过'; else $('status').textContent='自检失败';
   state.acc=''; state.show='active'; state.sort='due'; render();
 }

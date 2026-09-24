@@ -13,6 +13,7 @@ import argparse
 import base64
 import csv
 import json
+import os
 import re
 import sys
 import time
