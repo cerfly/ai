@@ -1,5 +1,5 @@
 ---
-name: fix-issue
+name: speaker-issue-fix
 description: "Generic issue-troubleshooting methodology: use when the user reports a technical problem (故障 / 报障 / 问题排查 / troubleshoot / diagnose / issue report / fix procedure) and wants a repeatable diagnosis-then-fix workflow, or wants an issue documented. Applies to any domain (hardware, software, network, …, no topic-specific content lives here); each concrete case is recorded in a sibling issue-report.md. NOT for coding tasks, repo operations, or general questions."
 ---
 
