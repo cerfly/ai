@@ -37,6 +37,8 @@ cards and exports loan status and full borrowing history.
 ```
 python tracker.py encrypt           # encrypt plaintext credentials, auto-saves key file
 python tracker.py check             # fetch current loans for all accounts + export
+python tracker.py renew             # 续借 =0 的书 (+21d); dry-run 默认, --yes 执行
+    --account L    (repeatable, default: all accounts) ; --yes
 python tracker.py loan-history      # borrowing history; flags:
     --start-date YYYYMMDD (default 20200101)
     --end-date YYYYMMDD   (default today)
@@ -86,9 +88,19 @@ GET /m/proxyBasic.jsp?servicehistory/GetLoanHistory?
   `Ef`=丢失文献, `Eg`=还回, `Eh`/`Ei`=自助借/还恢复, `Ej`=催还通知.
 - Normalize dates (`_normalize_date`: `20260912` → `2026-09-12`).
 
+**Renew (续借, implemented):** `GET /m/proxyBasic.jsp?circulationservice/renew?barcode=<b>&access_token=<renew_token>&eventsite=WWW-MOBILE`, Referer `mem_borrow.html`.
+- ⚠ The renew endpoint **rejects the login cookie** (`accessToken_szlib`) with
+  `API操作员t1无此项权限!编号323` — it needs the **per-session renew token
+  embedded in `mem_borrow.html`**; extract via
+  `circulationservice/renew\?barcode=.*?access_token=([0-9a-f-]+)` (client caches it).
+- Success → `{"message":"续借成功! ( 应还日期为:YYYYMMDD)"}`; each renewal **+21 days**;
+  **max 3 renewals** per loan (dashboard `MAX_RENEW = 3`); overdue or 期刊(JC) cannot renew.
+- `tracker.py renew` dry-runs by default (prints due -> new due), `--yes` executes.
+
 **Other endpoints found on the member page:** `readerservice/getReaderMarkHistory`,
 `sta/getReaderCredit?cardno=`, `sta/jzScore`, `sta/readerMarkHistory?period=all&cardno=`,
-`circulation/Renew`, `circulation/RenewByReader`, `auth/oauth/check_token`.
+`circulation/Renew` (legacy, commented out in page), `circulation/RenewByReader`,
+`auth/oauth/check_token`.
 
 ## 文献转借 (book transfer between reader cards)
 
