@@ -9,7 +9,7 @@
 | `skills/szse` | 深圳少儿图书馆借阅数据采集 · 统计 · 可视化看板(详见下方) |
 | `skills/szlib-tracker` | 深圳图书馆(szlib.org.cn,成人馆)借阅跟踪 —— 与少儿馆 szse 区分 |
 | `skills/youtube-summarize` | YouTube 视频总结技能(详情见其 `SKILL.md`) |
-| `skills/fix-issue` | 本机已解决问题的修复流程与记录(蓝牙音箱自动连接等,详见下方) |
+| `skills/fix-issue` | 本机已解决问题的修复流程与记录(蓝牙音箱自动连接、触屏失灵等,详见下方) |
 
 ---
 
@@ -19,7 +19,11 @@
 `SKILL.md` + 配套 `issue-report.md`:
 
 - **蓝牙音箱自动连接(Philips SPA3609)**:PC 侧配置本无问题,根因是音箱待机/"上次设备
-  记忆";修复 = systemd 看门狗服务让 PC 主动拨打。排查记录见 [`issue-report.md`](skills/fix-issue/issue-report.md)。
+  记忆";修复 = systemd 看门狗服务让 PC 主动拨打。排查记录见 [`issue-report.md`](skills/speaker-issue-fix/issue-report.md)。
+- **Pixelbook 触屏失灵(Google Pixelbook / `eve`)**:枚举正常但原始事件零输出 →
+  **硬件故障**,无软件修复。通用诊断方法见
+  [`SKILL.md`](skills/touchscreen-issue-fix/SKILL.md),案例与实测见
+  [`issue-report.md`](skills/touchscreen-issue-fix/issue-report.md)。
 
 > ⚠️ 本目录曾含本机蓝牙 MAC 地址,公开前已**打码**(`XX:XX:XX:XX:XX:XX`);真实 MAC 仅存于本机
 > 系统服务文件,不入库。仓库内路径均为通用 `~` 相对路径。
