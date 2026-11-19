@@ -232,7 +232,11 @@ def cmd_import(args):
 
 
 def main():
+    global FILE, BORROW_CSV, ACCOUNT_FILE
     ap = argparse.ArgumentParser(description="待还计划管理")
+    ap.add_argument("--plan-file", default=FILE, help="计划 JSON 路径")
+    ap.add_argument("--borrow-csv", default=BORROW_CSV, help="当前在借 CSV 路径")
+    ap.add_argument("--account-file", default=ACCOUNT_FILE, help="账户凭据文件(用于账户标签)")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("list", help="列出计划")
@@ -263,6 +267,9 @@ def main():
         p.add_argument("key", help="条码或题名关键字")
 
     args = ap.parse_args()
+    FILE = os.path.abspath(args.plan_file)
+    BORROW_CSV = os.path.abspath(args.borrow_csv)
+    ACCOUNT_FILE = os.path.abspath(args.account_file)
     if args.cmd == "list":
         render(load())
     elif args.cmd == "add":

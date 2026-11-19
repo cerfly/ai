@@ -3,6 +3,7 @@
 
 用法:
   python3 scripts/plan_view.py            # 读 data/borrow.csv 与 data/return_plan.json → 写 plan.html
+  python3 scripts/plan_view.py --borrow-csv data/group2_borrow.csv --out plan_group2.html
 准确性保证:
   - 快照书目 = 当前在借(borrow.csv)的并集,绝不多出不在借的书
   - 在借书 若已在计划中:保留计划里的 intent/note/checked/status,应还/题名/账户以在借为准刷新
@@ -10,6 +11,7 @@
   - 计划中有但在借中已没有的条目 → 不进入快照(归还后即消失),下次成功保存后自动从 json 清出
 - 模板:scripts/plan_tpl.html;产出:plan.html(浏览器直接打开即加载快照,可继续手动勾选/改方式并保存回 json)
 """
+import argparse
 import csv
 import json
 import os
@@ -31,16 +33,25 @@ def acc_label(row):
 
 
 def main():
+    ap = argparse.ArgumentParser(description="生成 plan.html 在借快照编辑器")
+    ap.add_argument("--borrow-csv", default=CSV, help="当前在借 CSV")
+    ap.add_argument("--plan-json", default=PLAN, help="待还计划 JSON")
+    ap.add_argument("--out", default=OUT, help="输出 HTML")
+    args = ap.parse_args()
+    borrow_csv = os.path.abspath(args.borrow_csv)
+    plan_json = os.path.abspath(args.plan_json)
+    out_html = os.path.abspath(args.out)
+
     loans = {}
-    if os.path.exists(CSV):
-        with open(CSV, encoding="utf-8-sig") as f:
+    if os.path.exists(borrow_csv):
+        with open(borrow_csv, encoding="utf-8-sig") as f:
             for row in csv.DictReader(f):
                 bc = (row.get("条码") or row.get("barcode") or "").strip()
                 if bc:
                     loans[bc] = row
     saved = {}
-    if os.path.exists(PLAN):
-        with open(PLAN, encoding="utf-8") as f:
+    if os.path.exists(plan_json):
+        with open(plan_json, encoding="utf-8") as f:
             for it in (json.load(f).get("items") or []):
                 saved[it.get("barcode") or it.get("title") or ""] = dict(it)
     refreshed = 0
@@ -68,8 +79,9 @@ def main():
         "/*__EMBED__*/ null",
         "/*__EMBED__*/ " + json.dumps(embed, ensure_ascii=False),
     )
-    open(OUT, "w", encoding="utf-8").write(out)
-    print(f"plan.html 已生成:在借 {len(items)} 本(与在借完全一致;计划元数据刷新 {refreshed} 条)"
+    open(out_html, "w", encoding="utf-8").write(out)
+    print(f"{os.path.basename(out_html)} 已生成:在借 {len(items)} 本"
+          f"(与在借完全一致;计划元数据刷新 {refreshed} 条)"
           f" · generated={embed['generated']}")
 
 

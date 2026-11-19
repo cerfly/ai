@@ -328,15 +328,23 @@ def main():
     for idx, (idno, pwd) in enumerate(accounts, 1):
         print("=" * 62)
         print(f"[{idx}/{len(accounts)}] 证件号 {mask_id(idno)}", end=" ")
-        s = new_session()
-        try:
-            ok = login(s, ocr, idno, pwd)
-        except Exception as e:
-            print(f"登录异常: {e}")
-            failed.append(mask_id(idno))
-            continue
+        ok = False
+        for attempt in range(3):
+            s = new_session()
+            try:
+                ok = login(s, ocr, idno, pwd)
+            except Exception as e:
+                print(f"登录异常({e})", end=" ")
+                ok = False
+            if ok:
+                break
+            if ok is None:  # 凭据错误,重试无意义
+                break
+            if attempt < 2:
+                print(f"重试 {attempt + 1}/2 ...", end=" ")
+                time.sleep(3)
         if not ok:
-            print("登录失败(用户名或密码错误)")
+            print("登录失败(网络异常或用户名/密码错误)")
             failed.append(mask_id(idno))
             continue
 

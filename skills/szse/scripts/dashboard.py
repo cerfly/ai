@@ -26,6 +26,8 @@ SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 ASSETS_DIR = os.path.join(BASE_DIR, "assets")
 CACHE_FULL = os.path.join(DATA_DIR, "full_history_records.json")
+# 站点仅保留约 2023-07 起的数据;20000101 起的大范围查询易超时/返回空
+FULL_BEGDATE = "20230101"
 OUT_HTML = os.path.join(DATA_DIR, "dashboard.html")
 DATA_J = os.path.join(DATA_DIR, "dashboard_data.json")
 ECHARTS_LOCAL = os.path.join(ASSETS_DIR, "echarts.min.js")
@@ -78,17 +80,21 @@ def load_cache_or_fetch(accounts, ocr, refresh=False, no_fetch=False):
     if not refresh and not no_fetch and os.path.exists(CACHE_FULL):
         with open(CACHE_FULL, encoding="utf-8") as f:
             cached = json.load(f)
-        if cached.get("accounts") and len(cached["accounts"]) == len(accounts):
+        if (cached.get("accounts") and len(cached["accounts"]) == len(accounts)
+                and not cached.get("incomplete")):
             print(f"[缓存] 使用全量借阅史缓存({cached['fetched_at']})")
             return cached
     if no_fetch:
         if os.path.exists(CACHE_FULL):
             with open(CACHE_FULL, encoding="utf-8") as f:
-                return json.load(f)
+                cached = json.load(f)
+            if cached.get("incomplete"):
+                print("注意: 本地全量历史缓存标记为不完整")
+            return cached
         sys.exit("--no-fetch 但无本地缓存文件")
     end = datetime.now().strftime("%Y%m%d")
     out = {"fetched_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-           "begdate": "20000101", "enddate": end, "accounts": []}
+           "begdate": FULL_BEGDATE, "enddate": end, "accounts": []}
     for idx, (idno, pwd) in enumerate(accounts, 1):
         print(f"[{idx}/{len(accounts)}] 抓取全量借阅史 {acc_label(idno)} ...", end=" ")
         s = new_session()
@@ -100,12 +106,35 @@ def load_cache_or_fetch(accounts, ocr, refresh=False, no_fetch=False):
         if not ok:
             print("登录失败")
             continue
-        hist = fetch_all_history(s, "20000101", end) or []
+        hist = []
+        for attempt in range(3):
+            try:
+                hist = fetch_all_history(s, FULL_BEGDATE, end, timeout=180) or []
+            except Exception as e:
+                print(f"抓取异常({type(e).__name__})", end=" ")
+                hist = []
+            if hist:
+                break
+            if attempt < 2:
+                print(f"返回 0 条,重试 {attempt + 1}/2 ...", end=" ")
+                time.sleep(2)
+                s = new_session()
+                try:
+                    if not login(s, ocr, idno, pwd):
+                        print("重登录失败", end=" ")
+                        break
+                except Exception as e:
+                    print(f"重登录异常 {e}", end=" ")
+                    break
         out["accounts"].append({"idcard": idno, "records": hist})
-        print(f"{len(hist)} 条")
+        print(f"{len(hist)} 条" + (" (警告: 该账户返回空,可能服务端异常)"
+                                  if not hist else ""))
         time.sleep(1)
+    out["incomplete"] = any(not a["records"] for a in out["accounts"])
     with open(CACHE_FULL, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
+    if out["incomplete"]:
+        print("注意: 存在空的全量借阅史,本缓存标记为不完整,下次运行将自动重抓。")
     return out
 
 
@@ -153,14 +182,25 @@ def monthly_series(records):
 
 
 def main():
+    global DATA_DIR, CACHE_FULL, OUT_HTML, DATA_J
     ap = argparse.ArgumentParser()
     ap.add_argument("--refresh-full", action="store_true", help="强制重抓全量历史")
     ap.add_argument("--no-fetch", action="store_true", help="仅用本地缓存/文件,不访问网络")
     ap.add_argument("--dummy", action="store_true",
                     help="示例数据模式(不登录,用于前端调试)")
+    ap.add_argument("--account-file", default=ACCOUNT_FILE,
+                    help=f"账户凭据文件(默认 {ACCOUNT_FILE})")
+    ap.add_argument("--data-dir", default=DATA_DIR,
+                    help=f"看板数据/缓存输出目录(默认 {DATA_DIR})")
     args = ap.parse_args()
 
-    accounts = load_accounts(ACCOUNT_FILE)
+    DATA_DIR = os.path.abspath(args.data_dir)
+    os.makedirs(DATA_DIR, exist_ok=True)
+    CACHE_FULL = os.path.join(DATA_DIR, "full_history_records.json")
+    OUT_HTML = os.path.join(DATA_DIR, "dashboard.html")
+    DATA_J = os.path.join(DATA_DIR, "dashboard_data.json")
+
+    accounts = load_accounts(os.path.abspath(args.account_file))
     ocr = ddddocr.DdddOcr(show_ad=False) if not args.dummy else None
 
     if args.dummy:

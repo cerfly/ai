@@ -164,3 +164,24 @@ python3 scripts/plan.py done "<条码或题名>"        # mark returned (undo / 
 - System `chromium` + `chromedriver` present; `~/bin/...` may be broken — prefer `/usr/bin/…`.
 - Known venue quirks: `https://ilas.szclib.org.cn/ILASOPAC/`; account files store **身份证号 + 8位出生日期** passwords; server retains history only from ~2023-07.
 - After editing any script: `cd /home/cerfly/ai/skills/szse && python3 -c "import py_compile; py_compile.compile('scripts/szse_lib.py', doraise=True)"` (and same for `scripts/dashboard.py`) before running.
+
+## macOS 本机补充 (2026-11-17)
+
+本机 clone 位于 `~/ai/skills/szse`,Python 环境在 `~/.venvs/szse/bin/python`(已装 `requests` + `ddddocr`);无 chromium/node,无法跑 headless 渲染自检。
+
+多账户组无需改代码或建软链,以下脚本已支持自定义路径:
+
+- `scripts/szse_lib.py <账户文件> <输出前缀>` — 原有能力。
+- `scripts/plan.py --plan-file F --borrow-csv CSV --account-file F import` — 全局选项须放在子命令**之前**。
+- `scripts/plan_view.py --borrow-csv CSV --plan-json F --out HTML`。
+- `scripts/dashboard.py --account-file F --data-dir DIR` — 看板/缓存/数据 JSON 都输出到 `DIR`。全量借阅史起始日改为 `20230101`(站点仅留存约 2023-07 起的数据;原 `20000101` 大范围查询会超时/返回空);若某账户返回 0 条或抓取异常会自动重试 2 次,仍为空则把缓存标记 `incomplete`,下次运行自动重抓(不用手动 `--refresh-full`)。
+
+一键刷新(默认账户组 `szse_group`,输出前缀 `data/group2_borrow`):
+
+```bash
+~/ai/skills/szse/scripts/refresh.sh
+```
+
+可用环境变量 `PY / ACCOUNT / PREFIX / PLAN_JSON / PLAN_OUT / DASH_DIR` 覆盖默认值。
+
+隐私: `.gitignore` 用 `/szse*` 匹配所有账户组凭据文件,仓库根目录的 `.gitignore` 忽略 `.DS_Store`。
